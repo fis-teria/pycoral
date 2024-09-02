@@ -29,6 +29,8 @@ python3 examples/semantic_segmentation.py \
 """
 
 import argparse
+import glob
+import cv2
 
 import numpy as np
 from PIL import Image
@@ -106,31 +108,40 @@ def main():
   interpreter.allocate_tensors()
   width, height = common.input_size(interpreter)
 
-  img = Image.open(args.input)
-  if args.keep_aspect_ratio:
-    resized_img, _ = common.set_resized_input(
-        interpreter, img.size, lambda size: img.resize(size, Image.LANCZOS))
-  else:
-    resized_img = img.resize((width, height), Image.LANCZOS)
-    common.set_input(interpreter, resized_img)
+  #print(args.input)
+  str = '../build/ex_data/color/*'
+  outdir = '../build/ex_data/mask/'
+  img_paths = glob.glob(str)
+  for path in img_paths:
+    img = Image.open(args.input)
+    print(args.keep_aspect_ratio)
+    if args.keep_aspect_ratio:
+      resized_img, _ = common.set_resized_input(
+          interpreter, img.size, lambda size: img.resize(size, Image.LANCZOS))
+    else:
+      resized_img = img.resize((width, height), Image.LANCZOS)
+      common.set_input(interpreter, resized_img)
 
-  interpreter.invoke()
+    interpreter.invoke()
 
-  result = segment.get_output(interpreter)
-  if len(result.shape) == 3:
-    result = np.argmax(result, axis=-1)
+    result = segment.get_output(interpreter)
+    if len(result.shape) == 3:
+      result = np.argmax(result, axis=-1)
 
-  # If keep_aspect_ratio, we need to remove the padding area.
-  new_width, new_height = resized_img.size
-  result = result[:new_height, :new_width]
-  mask_img = Image.fromarray(label_to_color_image(result).astype(np.uint8))
+    # If keep_aspect_ratio, we need to remove the padding area.
+    new_width, new_height = resized_img.size
+    result = result[:new_height, :new_width]
+    mask_img = Image.fromarray(label_to_color_image(result).astype(np.uint8))
+    mask_img.show()
+    cv2.waitKey(0)
 
-  # Concat resized input image and processed segmentation results.
-  output_img = Image.new('RGB', (2 * new_width, new_height))
-  output_img.paste(resized_img, (0, 0))
-  output_img.paste(mask_img, (width, 0))
-  output_img.save(args.output)
-  print('Done. Results saved at', args.output)
+    # Concat resized input image and processed segmentation results.
+    #output_img = Image.new('RGB', (2 * new_width, new_height))
+    #output_img.paste(resized_img, (0, 0))
+    #output_img.paste(mask_img, (width, 0))
+    #output_img.save(args.output)
+    print('Done. Results saved at', args.output)
+    #print('Done. Results saved at', output_path)
 
 if __name__ == '__main__':
   main()

@@ -27,7 +27,7 @@ For example:
 ```
 bash examples/install_requirements.sh two_models_inference.py
 
-python3 examples/two_models_inference.py \
+python3 ../pycoral/examples/two_models_inference.py \
   --classification_model test_data/mobilenet_v2_1.0_224_quant_edgetpu.tflite  \
   --detection_model \
     test_data/ssd_mobilenet_v2_face_quant_postprocess_edgetpu.tflite \

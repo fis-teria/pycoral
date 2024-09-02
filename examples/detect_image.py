@@ -32,6 +32,9 @@ python3 examples/detect_image.py \
 
 import argparse
 import time
+import glob
+import re
+import time
 
 from PIL import Image
 from PIL import ImageDraw
@@ -68,6 +71,7 @@ def main():
   parser.add_argument('-c', '--count', type=int, default=5,
                       help='Number of times to run inference')
   args = parser.parse_args()
+  print(args)
 
   labels = read_label_file(args.labels) if args.labels else {}
   interpreter = make_interpreter(args.model)
@@ -102,7 +106,6 @@ def main():
     draw_objects(ImageDraw.Draw(image), objs, labels)
     image.save(args.output)
     image.show()
-
 
 if __name__ == '__main__':
   main()
