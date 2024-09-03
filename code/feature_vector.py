@@ -123,7 +123,7 @@ def main():
       '--model',
       help='Name of image classification model.',
       required=False,
-      default='efficientnet_lite0.tflite')
+      default='mobilenet-v3-tflite-large-075-224-feature-vector-v1.tflite')
   parser.add_argument(
       '--maxResults',
       help='Max of classification results.',
