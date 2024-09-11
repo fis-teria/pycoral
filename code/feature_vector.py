@@ -11,159 +11,101 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-"""Main script to run image classification."""
+"""Python demo tool for Image Embedder."""
 
-import argparse
-import sys
-import time
+import os
 
-import cv2
-from tflite_support.task import core
-from tflite_support.task import processor
-from tflite_support.task import vision
+from absl import app
+from absl import flags
 
-# Visualization parameters
-_ROW_SIZE = 20  # pixels
-_LEFT_MARGIN = 24  # pixels
-_TEXT_COLOR = (0, 0, 255)  # red
-_FONT_SIZE = 1
-_FONT_THICKNESS = 1
-_FPS_AVERAGE_FRAME_COUNT = 10
+from tensorflow_lite_support.python.task.core.proto import base_options_pb2
+from tensorflow_lite_support.python.task.processor.proto import embedding_options_pb2
+from tensorflow_lite_support.python.task.vision import image_embedder
+from tensorflow_lite_support.python.task.vision.core import tensor_image
 
+FLAGS = flags.FLAGS
+_BaseOptions = base_options_pb2.BaseOptions
 
-def run(model: str, max_results: int, score_threshold: float, num_threads: int,
-        enable_edgetpu: bool, camera_id: int, width: int, height: int) -> None:
-  """Continuously run inference on images acquired from the camera.
-
-  Args:
-      model: Name of the TFLite image classification model.
-      max_results: Max of classification results.
-      score_threshold: The score threshold of classification results.
-      num_threads: Number of CPU threads to run the model.
-      enable_edgetpu: Whether to run the model on EdgeTPU.
-      camera_id: The camera id to be passed to OpenCV.
-      width: The width of the frame captured from the camera.
-      height: The height of the frame captured from the camera.
-  """
-
-  # Initialize the image classification model
-  base_options = core.BaseOptions(
-      file_name=model, use_coral=enable_edgetpu, num_threads=num_threads)
-
-  # Enable Coral by this setting
-  classification_options = processor.ClassificationOptions(
-      max_results=max_results, score_threshold=score_threshold)
-  options = vision.ImageClassifierOptions(
-      base_options=base_options, classification_options=classification_options)
-
-  classifier = vision.ImageClassifier.create_from_options(options)
-
-  # Variables to calculate FPS
-  counter, fps = 0, 0
-  start_time = time.time()
-
-  # Start capturing video input from the camera
-  cap = cv2.VideoCapture(camera_id)
-  cap.set(cv2.CAP_PROP_FRAME_WIDTH, width)
-  cap.set(cv2.CAP_PROP_FRAME_HEIGHT, height)
-
-  # Continuously capture images from the camera and run inference
-  while cap.isOpened():
-    success, image = cap.read()
-    if not success:
-      sys.exit(
-          'ERROR: Unable to read from webcam. Please verify your webcam settings.'
-      )
-
-    counter += 1
-    image = cv2.flip(image, 1)
-
-    # Convert the image from BGR to RGB as required by the TFLite model.
-    rgb_image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
-
-    # Create TensorImage from the RGB image
-    tensor_image = vision.TensorImage.create_from_array(rgb_image)
-    # List classification results
-    categories = classifier.classify(tensor_image)
-
-    # Show classification results on the image
-    for idx, category in enumerate(categories.classifications[0].categories):
-      category_name = category.category_name
-      score = round(category.score, 2)
-      result_text = category_name + ' (' + str(score) + ')'
-      text_location = (_LEFT_MARGIN, (idx + 2) * _ROW_SIZE)
-      cv2.putText(image, result_text, text_location, cv2.FONT_HERSHEY_PLAIN,
-                  _FONT_SIZE, _TEXT_COLOR, _FONT_THICKNESS)
-
-    # Calculate the FPS
-    if counter % _FPS_AVERAGE_FRAME_COUNT == 0:
-      end_time = time.time()
-      fps = _FPS_AVERAGE_FRAME_COUNT / (end_time - start_time)
-      start_time = time.time()
-
-    # Show the FPS
-    fps_text = 'FPS = ' + str(int(fps))
-    text_location = (_LEFT_MARGIN, _ROW_SIZE)
-    cv2.putText(image, fps_text, text_location, cv2.FONT_HERSHEY_PLAIN,
-                _FONT_SIZE, _TEXT_COLOR, _FONT_THICKNESS)
-
-    # Stop the program if the ESC key is pressed.
-    if cv2.waitKey(1) == 27:
-      break
-    cv2.imshow('image_classification', image)
-
-  cap.release()
-  cv2.destroyAllWindows()
+flags.DEFINE_string(
+    "model_path", None, 'Absolute path to the ".tflite" image embedder model.'
+)
+flags.DEFINE_string(
+    "first_image_path",
+    None,
+    "Absolute path to the first image, whose feature vector will be extracted "
+    "and compared to the second image using cosine similarity. The image must "
+    "be RGB or RGBA (grayscale is not supported). The image EXIF orientation "
+    "flag, if any, is NOT taken into account.",
+)
+flags.DEFINE_string(
+    "second_image_path",
+    None,
+    "Absolute path to the second image, whose feature vector will be extracted "
+    "and compared to the first image using cosine similarity. The image must "
+    "be RGB or RGBA (grayscale is not supported). The image EXIF orientation "
+    "flag, if any, is NOT taken into account.",
+)
+flags.DEFINE_bool(
+    "l2_normalize",
+    False,
+    "If true, the raw feature vectors returned by the image embedder will be "
+    "normalized with L2-norm. Generally only needed if the model doesn't "
+    "already contain a L2_NORMALIZATION TFLite Op.",
+)
+flags.DEFINE_bool(
+    "quantize",
+    False,
+    "If true, the raw feature vectors returned by the image embedder will be "
+    "quantized to 8 bit integers (uniform quantization) via post-processing "
+    "before cosine similarity is computed.",
+)
+flags.DEFINE_bool(
+    "use_coral",
+    False,
+    "If true, inference will be delegated to a connected Coral Edge TPU device.",
+)
 
 
-def main():
-  parser = argparse.ArgumentParser(
-      formatter_class=argparse.ArgumentDefaultsHelpFormatter)
-  parser.add_argument(
-      '--model',
-      help='Name of image classification model.',
-      required=False,
-      default='mobilenet-v3-tflite-large-075-224-feature-vector-v1.tflite')
-  parser.add_argument(
-      '--maxResults',
-      help='Max of classification results.',
-      required=False,
-      default=3)
-  parser.add_argument(
-      '--scoreThreshold',
-      help='The score threshold of classification results.',
-      required=False,
-      type=float,
-      default=0.0)
-  parser.add_argument(
-      '--numThreads',
-      help='Number of CPU threads to run the model.',
-      required=False,
-      default=4)
-  parser.add_argument(
-      '--enableEdgeTPU',
-      help='Whether to run the model on EdgeTPU.',
-      action='store_true',
-      required=False,
-      default=False)
-  parser.add_argument(
-      '--cameraId', help='Id of camera.', required=False, default=0)
-  parser.add_argument(
-      '--frameWidth',
-      help='Width of frame to capture from camera.',
-      required=False,
-      default=640)
-  parser.add_argument(
-      '--frameHeight',
-      help='Height of frame to capture from camera.',
-      required=False,
-      default=480)
-  args = parser.parse_args()
-
-  run(args.model, int(args.maxResults),
-      args.scoreThreshold, int(args.numThreads), bool(args.enableEdgeTPU),
-      int(args.cameraId), args.frameWidth, args.frameHeight)
+def build_options():
+    base_options = _BaseOptions(file_name=FLAGS.model_path, use_coral=FLAGS.use_coral)
+    embedding_options = embedding_options_pb2.EmbeddingOptions(
+        l2_normalize=FLAGS.l2_normalize, quantize=FLAGS.quantize
+    )
+    return image_embedder.ImageEmbedderOptions(
+        base_options=base_options, embedding_options=embedding_options
+    )
 
 
-if __name__ == '__main__':
-  main()
+def main(_) -> None:
+    # Creates embedder.
+    options = build_options()
+    embedder = image_embedder.ImageEmbedder.create_from_options(options)
+
+    # Loads images.
+    first_image = tensor_image.TensorImage.from_file(FLAGS.first_image_path)
+    second_image = tensor_image.TensorImage.from_file(FLAGS.second_image_path)
+
+    # Extracts both embeddings.
+    first_result = embedder.embed(first_image)
+    second_result = embedder.embed(second_image)
+
+    # Gets consine similarity.
+    cosine_similarity = embedder.cosine_similarity(
+        first_result.embeddings[0].feature_vector,
+        second_result.embeddings[0].feature_vector,
+    )
+    print(
+        "The cosine similarity of %s and %s is %f"
+        % (
+            os.path.basename(FLAGS.first_image_path),
+            os.path.basename(FLAGS.second_image_path),
+            cosine_similarity,
+        )
+    )
+
+
+if __name__ == "__main__":
+    flags.mark_flag_as_required("model_path")
+    flags.mark_flag_as_required("first_image_path")
+    flags.mark_flag_as_required("second_image_path")
+    app.run(main)

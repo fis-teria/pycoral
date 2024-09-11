@@ -159,6 +159,7 @@ def semantic_segmentation(origin_img, interpreter, keep_aspect_ratio, pos, d_id)
     #cv2.waitKey(100)
     
     image_datas = datas
+    
     return image_datas, ss_id
 
 
@@ -175,7 +176,7 @@ def main():
     d_id = "bird"
     ss_models_keep_aspect_ratio = define_ss_interpreter()
     image_datas = semantic_segmentation(img, ss_models_keep_aspect_ratio[0], ss_models_keep_aspect_ratio[1], pos, d_id)
-    print(image_datas[0].pos)
+    print(image_datas)
     print(len(image_datas))
 
 if __name__ == '__main__':
