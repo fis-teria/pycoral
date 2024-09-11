@@ -18,13 +18,17 @@ import os
 from absl import app
 from absl import flags
 
-from tensorflow_lite_support.python.task.core.proto import base_options_pb2
-from tensorflow_lite_support.python.task.processor.proto import embedding_options_pb2
-from tensorflow_lite_support.python.task.vision import image_embedder
-from tensorflow_lite_support.python.task.vision.core import tensor_image
+#from tensorflow_lite_support.python.task.core.proto import base_options_pb2
+#from tensorflow_lite_support.python.task.processor.proto import embedding_options_pb2
+#from tensorflow_lite_support.python.task.vision import image_embedder
+#from tensorflow_lite_support.python.task.vision.core import tensor_image
+
+from tflite_support.task import core
+from tflite_support.task import processor
+from tflite_support.task import vision
 
 FLAGS = flags.FLAGS
-_BaseOptions = base_options_pb2.BaseOptions
+_BaseOptions =core.BaseOptions
 
 flags.DEFINE_string(
     "model_path", None, 'Absolute path to the ".tflite" image embedder model.'
@@ -68,10 +72,10 @@ flags.DEFINE_bool(
 
 def build_options():
     base_options = _BaseOptions(file_name=FLAGS.model_path, use_coral=FLAGS.use_coral)
-    embedding_options = embedding_options_pb2.EmbeddingOptions(
+    embedding_options = processor.EmbeddingOptions(
         l2_normalize=FLAGS.l2_normalize, quantize=FLAGS.quantize
     )
-    return image_embedder.ImageEmbedderOptions(
+    return vision.ImageEmbedderOptions(
         base_options=base_options, embedding_options=embedding_options
     )
 
@@ -79,11 +83,11 @@ def build_options():
 def main(_) -> None:
     # Creates embedder.
     options = build_options()
-    embedder = image_embedder.ImageEmbedder.create_from_options(options)
+    embedder = vision.ImageEmbedder.create_from_options(options)
 
     # Loads images.
-    first_image = tensor_image.TensorImage.from_file(FLAGS.first_image_path)
-    second_image = tensor_image.TensorImage.from_file(FLAGS.second_image_path)
+    first_image = vision.TensorImage.create_from_file(FLAGS.first_image_path)
+    second_image = vision.TensorImage.create_from_file(FLAGS.second_image_path)
 
     # Extracts both embeddings.
     first_result = embedder.embed(first_image)
