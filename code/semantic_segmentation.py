@@ -130,6 +130,7 @@ def semantic_segmentation(origin_img, interpreter, keep_aspect_ratio, pos, d_id)
       interpreter.invoke()
       inference_time = time.perf_counter() -start
       print("%.2f ms" % (inference_time * 1000))
+      print("----------------------")
 
       result = segment.get_output(interpreter)
       if len(result.shape) == 3:
