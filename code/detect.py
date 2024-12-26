@@ -6,6 +6,7 @@ import time
 import numpy as np
 import cv2
 import os
+import re
 
 from PIL import Image
 from PIL import ImageDraw
@@ -15,6 +16,7 @@ from pycoral.adapters import common
 from pycoral.adapters import detect
 from pycoral.utils.dataset import read_label_file
 from pycoral.utils.edgetpu import make_interpreter
+from f_sys import f_index
 
 @dataclass
 class ParserArgment:
@@ -111,8 +113,16 @@ def detect_image(img, interpreter, labels):
         print(obj.bbox.xmin, obj.bbox.xmax, obj.bbox.ymin, obj.bbox.ymax)
             # wdataset = [str(count), str(obj.bbox.xmin), str(obj.bbox.xmax), str(obj.bbox.ymin), str(obj.bbox.ymax), '\n']
             # f.writelines(wdataset)
+        xmin = obj.bbox.xmin
+        xmax = obj.bbox.xmax
+        ymin = obj.bbox.ymin
+        ymax = obj.bbox.ymax
+        if xmin < 0:
+            xmin = 0
+        if ymin < 0:
+            ymin = 0
         
-        pos.append([obj.bbox.xmin, obj.bbox.xmax, obj.bbox.ymin, obj.bbox.ymax])
+        pos.append([xmin, xmax, ymin, ymax])
         id.append(labels.get(obj.id, obj.id))
         # area = re.findall(r'\d+', obj.bbox)
         # print(area)
@@ -122,16 +132,44 @@ def detect_image(img, interpreter, labels):
         #pil2cv(image)
         #cv2.imshow("a", image)
         #cv2.waitKey(0)
-        # image.save(args.output)
+        image.save("../pycoral/test_data/detect_result.jpg")
         #image.show()
         #time.sleep(0.2)
+    
+    print(pos)
+    print(id)
+    for i in range(0, len(id)):
+        print([j for j, x in enumerate(id) if x == id[i]])
+        same_id = [j for j, x in enumerate(id) if x == id[i]]
+        if len(same_id) > 1:
+            _pos_a = pos.pop(same_id[0])
+            _id = id.pop(same_id[0])
+            for j in range(1, len(same_id)):
+                _pos_b = pos.pop(same_id[j] - j)
+                if _pos_a[0] > _pos_b[0]:
+                    _pos_a[0] = _pos_b[0]
+                if _pos_a[1] < _pos_b[1]:
+                    _pos_a[1] = _pos_b[1]
+                if _pos_a[2] > _pos_b[2]:
+                    _pos_a[2] = _pos_b[2]
+                if _pos_a[3] < _pos_b[3]:
+                    _pos_a[3] = _pos_b[3]
+                garbage = id.pop(same_id[j] - j)
+            pos.append(_pos_a)
+            id.append(_id)
+            print(pos)
+            print(id)
+            ImageDraw.Draw(image).rectangle([(_pos_a[0], _pos_a[2]), (_pos_a[1], _pos_a[3])], outline="green")
+            image.save("../pycoral/test_data/detect_result.jpg")
+        if i >= len(id) - 1:
+            break
     
     return pos, id
 
 
 
 def main():
-    img = cv2.imread("../pycoral/test_data/grace_hopper.bmp")
+    img = cv2.imread("../data/images/corridor/running1/color/000360.jpg")
     model_labels = define_detect_interpreter()
     detect_image(img, model_labels[0], model_labels[1])
 

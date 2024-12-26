@@ -3,7 +3,40 @@ import cv2
 import struct
 import sys
 import numpy as np
+import threading
+import time
+from typing import Any, Dict
+
+from zmq.utils.monitor import recv_monitor_message
+
 from semantic_segmentation import SSImageData
+
+print(f"libzmq-{zmq.zmq_version()}")
+if zmq.zmq_version_info() < (4, 0):
+    raise RuntimeError("monitoring in libzmq version < 4.0 is not supported")
+
+EVENT_MAP = {}
+print("Event names:")
+for name in dir(zmq):
+    if name.startswith('EVENT_'):
+        value = getattr(zmq, name)
+        print(f"{name:21} : {value:4}")
+        EVENT_MAP[value] = name
+
+
+def event_monitor(monitor: zmq.Socket) -> None:
+    while monitor.poll():
+        evt: Dict[str, Any] = {}
+        mon_evt = recv_monitor_message(monitor)
+        evt.update(mon_evt)
+        evt['description'] = EVENT_MAP[evt['event']]
+        print(f"Event: {evt}")
+        if evt['event'] == zmq.EVENT_MONITOR_STOPPED:
+            break
+    monitor.close()
+    print()
+    print("event monitor thread done!")
+
 
 def zmq_recive():
     # Connection String
@@ -12,15 +45,24 @@ def zmq_recive():
     # Open ZMQ Connection
     ctx = zmq.Context()
     sock = ctx.socket(zmq.REP)
-    sock.bind(conn_str)
-
+    #monitor = sock.get_monitor_socket()
+    #t = threading.Thread(target=event_monitor, args=(monitor,))
+    #t.start()
+    sock.bind(conn_str)    
+    
     # Receve Data from C++ Program
     byte_rows, byte_cols, byte_mat_type, data=  sock.recv_multipart()
 
     # Convert byte to integer
-    rows = struct.unpack('i', byte_rows)
-    cols = struct.unpack('i', byte_cols)
-    mat_type = struct.unpack('i', byte_mat_type)
+    print(byte_rows)
+    if len(byte_rows) == 4:
+        rows = struct.unpack('i', byte_rows)
+        cols = struct.unpack('i', byte_cols)
+        mat_type = struct.unpack('i', byte_mat_type)
+    else:
+        rows = struct.unpack('q', byte_rows)
+        cols = struct.unpack('q', byte_cols)
+        mat_type = struct.unpack('q', byte_mat_type)
 
     if mat_type[0] == 0:
         # Gray Scale
@@ -37,7 +79,7 @@ def zmq_recive():
 
 def zmq_check_recive():
     # Connection String
-    conn_str      = "tcp://*:5557"
+    conn_str      = "tcp://*:5558"
 
     # Open ZMQ Connection
     ctx = zmq.Context()
@@ -53,19 +95,28 @@ def zmq_check_recive():
 
 
 def zmq_n_serve(img_datas):
-    conn_str="tcp://localhost:5556"
+    #main system 192.168.1.2
+    conn_str="tcp://192.168.1.2:5556"
 
     args = sys.argv
 
     ctx = zmq.Context()
     sock = ctx.socket(zmq.REQ)
+
+    #monitor = sock.get_monitor_socket()
+    #t = threading.Thread(target=event_monitor, args=(monitor,))
+    #t.start()
+
     sock.connect(conn_str)
     n = len(img_datas)
-    sock.send_multipart([np.array([n])])
+    data = [np.array([n]), np.array([1])]
+    print(data)
+    sock.send_multipart(data)
     return n
 
 def zmq_img_serve(img, pos, id):
-    conn_str="tcp://localhost:5556"
+    #main system 192.168.1.2
+    conn_str="tcp://192.168.1.2:5557"
 
     args = sys.argv
 
@@ -81,14 +132,18 @@ def zmq_img_serve(img, pos, id):
     print("send image")
 
 def main():
-    if( "color" == "color"):
+    #if( "color" == "color"):
         # Color
-        img = cv2.imread("ex_data/color/000030.jpg", cv2.IMREAD_COLOR)
-    else:
+        #img = cv2.imread("ex_data/color/000030.jpg", cv2.IMREAD_COLOR)
+    #else:
         # Gray
-        img = cv2.imread("ex_data/color/000030.jpg", cv2.IMREAD_GRAYSCALE)
-    #zmq_recive()
-    #zmq_serve(img)
+        #img = cv2.imread("ex_data/color/000030.jpg", cv2.IMREAD_GRAYSCALE)
+    print("get image")
+    zmq_recive()
+    print("get image complete")
+    print("loop n serve")
+    n = zmq_n_serve([2, 3])
+    print("loop ", n, " serve complete")
 
 if __name__ == "__main__":
     main()

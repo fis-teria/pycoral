@@ -18,7 +18,7 @@ def f_index(l, str):
     if [str] in l:
         return l.index([str])
     else:
-        return 0
+        return -1
 def main():
     data = []
     data = f_open("../pycoral/test_data/pascal_voc_segmentation_labels.txt")

@@ -15,7 +15,8 @@
 
 import os
 import time
-import numpy as np
+import glob
+import csv
 
 from absl import app
 from absl import flags
@@ -31,7 +32,6 @@ from tflite_support.task import vision
 
 FLAGS = flags.FLAGS
 _BaseOptions =core.BaseOptions
-_EmbeddingResult = processor.EmbeddingResult
 
 flags.DEFINE_string(
     "model_path", None, 'Absolute path to the ".tflite" image embedder model.'
@@ -51,6 +51,11 @@ flags.DEFINE_string(
     "and compared to the first image using cosine similarity. The image must "
     "be RGB or RGBA (grayscale is not supported). The image EXIF orientation "
     "flag, if any, is NOT taken into account.",
+)
+flags.DEFINE_string(
+    "output",
+    None,
+    "result output path",
 )
 flags.DEFINE_bool(
     "l2_normalize",
@@ -82,32 +87,7 @@ def build_options():
         base_options=base_options, embedding_options=embedding_options
     )
 
-class Embedded_FeatureVector():
-    def __init__(self):
-        base_options = _BaseOptions(file_name="../pycoral/models/mobilenet-v3-tflite-large-075-224-feature-vector-metadata-v1.tflite", use_coral=False)
-        embedding_options = processor.EmbeddingOptions(
-            l2_normalize=False, quantize=False
-        )
-        options = vision.ImageEmbedderOptions(
-            base_options=base_options, embedding_options=embedding_options
-        )
-        print(options)
-        self.embedder = vision.ImageEmbedder.create_from_options(options)
-
-    def embed_from_array(self, img):
-        tf_img = vision.TensorImage.create_from_array(img)
-        self.result = self.embedder.embed(tf_img)
-    
-    def embed_from_file(self, path:str):
-        tf_img = vision.TensorImage.create_from_file(path)
-        self.result = self.embedder.embed(tf_img)
-        
-    def get_feature_vector(self):
-        return self.result.embeddings[0].feature_vector
-
-    def cosine_similarity(self, second_embedded):
-        result = self.embedder.cosine_similarity(self.result.embeddings[0].feature_vector, second_embedded)
-        return result
+def search_img_and_img()
 
 def main(_) -> None:
     # Creates embedder.
@@ -117,30 +97,45 @@ def main(_) -> None:
 
     # Loads images.
     first_image = vision.TensorImage.create_from_file(FLAGS.first_image_path)
-    second_image = vision.TensorImage.create_from_file(FLAGS.second_image_path)
 
-    print("----INFERENCE TIME----")
-    start = time.perf_counter()
-    # Extracts both embeddings.
-    first_result = embedder.embed(first_image)
-    second_result = embedder.embed(second_image)
+    second_imgs_path = FLAGS.second_image_path
+    glob_s_i_p = second_imgs_path + '*'
+    output_csv = FLAGS.output
+    img_paths = glob.glob(glob_s_i_p)
+    size = len(img_paths)
+    with open(output_csv, 'w', newline='', encoding='utf-8') as f:
+        writer = csv.writer(f)
+        st = '=RIGHT(\"' + FLAGS.first_image_path + '\",10)'
+        print(st)
+        writer.writerow([st,])
+        for i in range(0, size):
+            path = second_imgs_path + str(i).zfill(6) + '.jpg'
+            print(path)
+            second_image = vision.TensorImage.create_from_file(path)
+            print("----INFERENCE TIME----")
+            start = time.perf_counter()
 
-    # Gets consine similarity.
-    cosine_similarity = embedder.cosine_similarity(
-        first_result.embeddings[0].feature_vector,
-        second_result.embeddings[0].feature_vector,
-    )
-    print(
-        "The cosine similarity of %s and %s is %f"
-        % (
-            os.path.basename(FLAGS.first_image_path),
-            os.path.basename(FLAGS.second_image_path),
-            cosine_similarity,
-        )
-    )
-    inference_time = time.perf_counter() -start
-    print("%.2f ms" % (inference_time * 1000))
-    print("----------------------")
+            # Extracts both embeddings.
+            first_result = embedder.embed(first_image)
+            second_result = embedder.embed(second_image)
+
+            # Gets consine similarity.
+            cosine_similarity = embedder.cosine_similarity(
+                first_result.embeddings[0].feature_vector,
+                second_result.embeddings[0].feature_vector,
+            )
+            print(
+                "The cosine similarity of %s and %s is %f"
+                % (
+                    os.path.basename(FLAGS.first_image_path),
+                    os.path.basename(FLAGS.second_image_path),
+                    cosine_similarity,
+                )
+            )
+            inference_time = time.perf_counter() -start
+            print("%.2f ms" % (inference_time * 1000))
+            print("----------------------")
+            writer.writerow([i, cosine_similarity])
 
 
 if __name__ == "__main__":

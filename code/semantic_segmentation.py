@@ -30,7 +30,6 @@ class SSImageData:
 def cv2pil(image):
     ''' OpenCV型 -> PIL型 '''
     new_image = image.copy()
-    print(new_image.ndim )
     if new_image.ndim == 2:  # モノクロ
         pass
     elif new_image.shape[2] == 3:  # カラー
@@ -64,7 +63,6 @@ def create_pascal_label_colormap():
     for channel in range(3):
       colormap[:, channel] |= ((indices >> channel) & 1) << shift
     indices >>= 3
-
   return colormap
 
 
@@ -115,6 +113,8 @@ def semantic_segmentation(origin_img, interpreter, keep_aspect_ratio, pos, d_id)
         image = origin_img.copy()
         img = cv2pil(image[pos[i][2]:pos[i][3], pos[i][0]:pos[i][1]])      
         #img = cv2pil(image)
+      
+      img.save("../pycoral/test_data/seg_test.jpg")
 
       #cv2.imshow("img", pil2cv(img))
       #img.show()
@@ -129,9 +129,7 @@ def semantic_segmentation(origin_img, interpreter, keep_aspect_ratio, pos, d_id)
       start = time.perf_counter()
       interpreter.invoke()
       inference_time = time.perf_counter() -start
-      print("%.2f ms" % (inference_time * 1000))
-      print("----------------------")
-
+      
       result = segment.get_output(interpreter)
       if len(result.shape) == 3:
           result = np.argmax(result, axis=-1)
@@ -140,15 +138,19 @@ def semantic_segmentation(origin_img, interpreter, keep_aspect_ratio, pos, d_id)
       new_width, new_height = resized_img.size
       result = result[:new_height, :new_width]
       ss_id.append(f_index(data, d_id[i]))
+      
+      extract_img = np.zeros((new_height, new_width), np.uint8)
 
       for x in range(0,new_width):
-        for y in range(0,new_width): 
-            if result[y][x] != ss_id[-1]:
-               #result[y][x] = 0
+        for y in range(0,new_height): 
+            if result[y][x] == ss_id[-1]:
+               extract_img[y][x] = ss_id[-1]
+               #print(result[y][x])
                z = 0
               
 
       mask_img = Image.fromarray(label_to_color_image(result).astype(np.uint8))
+      mask_img.save("../pycoral/test_data/seg_result.jpg")
       mask_cvimg = pil2cv(mask_img)
       print(mask_cvimg.shape)
       data_expanded = SSImageData(mask_img = mask_cvimg.copy(), pos = pos[i])
@@ -156,6 +158,9 @@ def semantic_segmentation(origin_img, interpreter, keep_aspect_ratio, pos, d_id)
       datas.append(data_expanded)
       print("ss_label ", f_index(data, d_id[i]))
       i+=1
+
+      print("%.2f ms" % (inference_time * 1000))
+      print("----------------------")
     #mask_img.show()
     #cv2.waitKey(100)
     
@@ -172,13 +177,13 @@ def semantic_segmentation(origin_img, interpreter, keep_aspect_ratio, pos, d_id)
     #print('Done. Results saved at', args.output)
 
 def main():
-    img = cv2.imread("../pycoral/test_data/bird.bmp")
-    pos = [[0, 200, 0, 100], [100,200, 100, 200]]
-    d_id = "bird"
+    img = cv2.imread("../data/images/amalab/lab_root_3/loop_1/color/000010.jpg")
+    pos = [[0, 200, 0, 100], [0,img.shape[0], 0, img.shape[1]]]
+    d_id = "chair"
     ss_models_keep_aspect_ratio = define_ss_interpreter()
     image_datas = semantic_segmentation(img, ss_models_keep_aspect_ratio[0], ss_models_keep_aspect_ratio[1], pos, d_id)
     print(image_datas)
-    print(len(image_datas))
+    #print(len(image_datas))
 
 if __name__ == '__main__':
   main()

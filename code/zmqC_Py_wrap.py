@@ -54,7 +54,7 @@ def zmq_n_recive():
 
 
 def zmq_check_serve():
-    conn_str="tcp://192.168.2.124:5558"
+    conn_str="tcp://192.168.1.3:5558"
 
     args = sys.argv
 
@@ -65,7 +65,7 @@ def zmq_check_serve():
     sock.send_multipart([np.array([n])])
 
 def zmq_img_serve(img):
-    conn_str="tcp://192.168.2.124:5555"
+    conn_str="tcp://192.168.1.3:5555"
 
     args = sys.argv
 
