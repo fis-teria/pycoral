@@ -78,7 +78,7 @@ def detect_image(img, interpreter, labels):
     pos = []#position list
     id = []
 
-    args = ParserArgment(model="../pycoral/models/ssd_mobilenet_v2_coco_quant_postprocess_edgetpu.tflite", input="../pycoral/test_data/grace_hopper.bmp", labels="../pycoral/models/coco_labels.txt", output="../pycoral/test_data/grace_hopper_processed.bmp")
+    args = ParserArgment(model="../pycoral/models/mobilenet-v3-tflite-large-075-224-classification-metadata-v1.tflite", input="../pycoral/test_data/grace_hopper.bmp", labels="../pycoral/models/coco_labels.txt", output="../pycoral/test_data/grace_hopper_processed.bmp")
     print("get image")
     #image = Image.open(args.input)
     #img = cv2.imread(args.input)
@@ -96,8 +96,8 @@ def detect_image(img, interpreter, labels):
     for _ in range(args.count):
         start = time.perf_counter()
         interpreter.invoke()
-        inference_time = time.perf_counter() - start
         objs = detect.get_objects(interpreter, args.threshold, scale)
+        inference_time = time.perf_counter() - start
         print("%.2f ms" % (inference_time * 1000))
 
     print("-------RESULTS--------")

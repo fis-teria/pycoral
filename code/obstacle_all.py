@@ -71,7 +71,7 @@ def main(argv):
         
         test_dir = argv[2]
         #run_dir = argv[2]
-        csv_dir = "../data/logs/p_test/corridor/day_run4-3"
+        csv_dir = argv[3]
         test_color_dir = test_dir + "/color"
         test_dedge_dir = test_dir + "/dedge"
 
@@ -88,10 +88,10 @@ def main(argv):
         det_img_fv.embed_from_array(det_img)
         seg_img_fv = Embedded_FeatureVector()
         seg_img_fv.embed_from_array(seg_img)
-        ip_color_img_fv = Embedded_FeatureVector()
-        ip_color_img_fv.embed_from_array(ip_img)
-        ip_dedge_img_fv = Embedded_FeatureVector()
-        ip_dedge_img_fv.embed_from_array(ip_dedge)
+        #ip_color_img_fv = Embedded_FeatureVector()
+        #ip_color_img_fv.embed_from_array(ip_img)
+        #ip_dedge_img_fv = Embedded_FeatureVector()
+        #ip_dedge_img_fv.embed_from_array(ip_dedge)
 
         det_dedge_fv = Embedded_FeatureVector()
         det_dedge_fv.embed_from_array(det_dedge)
@@ -105,16 +105,16 @@ def main(argv):
             for img_num in range(0, test_num-2):
                 #test_fv.embed_from_file("../data/images/amalab/lab_root_3/loop_2/color/000041.jpg")
                 
-                ti_dir = test_color_dir + "/" + str(int(img_num)).zfill(6) + ".jpg"
-                td_dir = test_dedge_dir + "/" + str(int(img_num)).zfill(6) + ".jpg"
-                test_img = cv2.imread(ti_dir)
-                test_dedge = cv2.imread(td_dir)
-                re_img = cv2.resize(test_img ,(216, 120))
-                re_dedge = cv2.resize(test_dedge,(216, 120))
-                test_color_img_fv = Embedded_FeatureVector()
-                test_color_img_fv.embed_from_array(re_img)
-                test_dedge_img_fv = Embedded_FeatureVector()
-                test_dedge_img_fv.embed_from_array(re_dedge)
+                #ti_dir = test_color_dir + "/" + str(int(img_num)).zfill(6) + ".jpg"
+                #td_dir = test_dedge_dir + "/" + str(int(img_num)).zfill(6) + ".jpg"
+                #test_img = cv2.imread(ti_dir)
+                #test_dedge = cv2.imread(td_dir)
+                #re_img = cv2.resize(test_img ,(216, 120))
+                #re_dedge = cv2.resize(test_dedge,(216, 120))
+                #test_color_img_fv = Embedded_FeatureVector()
+                #test_color_img_fv.embed_from_array(re_img)
+                #test_dedge_img_fv = Embedded_FeatureVector()
+                #test_dedge_img_fv.embed_from_array(re_dedge)
                 
                 test_color_fv = test_db.get_db(img_num)
                 test_dedge_fv = test_dedge_db.get_db(img_num)
@@ -125,8 +125,10 @@ def main(argv):
                 result_det_dedge = det_dedge_fv.cosine_similarity(test_dedge_fv)
                 result_seg_dedge = seg_dedge_fv.cosine_similarity(test_dedge_fv)
                 
-                result_ip_color = ip_color_img_fv.cosine_similarity(test_color_img_fv.get_feature_vector())
-                result_ip_dedge = ip_dedge_img_fv.cosine_similarity(test_dedge_img_fv.get_feature_vector())
+                #result_ip_color = ip_color_img_fv.cosine_similarity(test_color_img_fv.get_feature_vector())
+                #result_ip_dedge = ip_dedge_img_fv.cosine_similarity(test_dedge_img_fv.get_feature_vector())
+                result_ip_color = 0
+                result_ip_dedge = 0
 
 
                 writer.writerow([result_det_img, result_seg_img, result_det_dedge, result_seg_dedge, result_ip_color, result_ip_dedge])
